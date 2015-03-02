@@ -374,7 +374,7 @@ KBUILD_CPPFLAGS := -D__KERNEL__
 
 KBUILD_CFLAGS   := $(GRAPHITE) -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
-		   -Werror-implicit-function-declaration \
+		   #-Werror-implicit-function-declaration \
 		   -Wno-format-security \
            	   -fmodulo-sched -fmodulo-sched-allow-regmoves -ffast-math \
            	   -funswitch-loops -fpredictive-commoning -fgcse-after-reload \
