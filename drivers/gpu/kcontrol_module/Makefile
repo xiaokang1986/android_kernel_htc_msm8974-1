@@ -1,4 +1,4 @@
-obj-$(CONFIG_KCONTROL_GPU_MODULE_MSM) += kcontrol_gpu_msm.o
+obj-m += kcontrol_gpu_msm.o
 
 kcontrol_gpu_msm-y	:= kcontrol_module_msm.o
 
