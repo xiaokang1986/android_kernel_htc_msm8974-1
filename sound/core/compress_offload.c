@@ -81,15 +81,12 @@ static int snd_compr_open(struct inode *inode, struct file *f)
 
 	if (dirn != compr->direction) {
 		pr_err("this device doesn't support this direction\n");
-		snd_card_unref(compr->card);
 		return -EINVAL;
 	}
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		snd_card_unref(compr->card);
+	if (!data)
 		return -ENOMEM;
-	}
 	data->stream.ops = compr->ops;
 	data->stream.direction = dirn;
 	data->stream.private_data = compr->private_data;
@@ -97,7 +94,6 @@ static int snd_compr_open(struct inode *inode, struct file *f)
 	runtime = kzalloc(sizeof(*runtime), GFP_KERNEL);
 	if (!runtime) {
 		kfree(data);
-		snd_card_unref(compr->card);
 		return -ENOMEM;
 	}
 	runtime->state = SNDRV_PCM_STATE_OPEN;
@@ -111,8 +107,7 @@ static int snd_compr_open(struct inode *inode, struct file *f)
 		kfree(runtime);
 		kfree(data);
 	}
-	snd_card_unref(compr->card);
-	return 0;
+	return ret;
 }
 
 static int snd_compr_free(struct inode *inode, struct file *f)
@@ -140,12 +135,9 @@ static int snd_compr_free(struct inode *inode, struct file *f)
 static int snd_compr_update_tstamp(struct snd_compr_stream *stream,
 		struct snd_compr_tstamp *tstamp)
 {
-	int err = 0;
 	if (!stream->ops->pointer)
 		return -ENOTSUPP;
-	err = stream->ops->pointer(stream, tstamp);
-	if (err)
-		return err;
+	stream->ops->pointer(stream, tstamp);
 	pr_debug("dsp consumed till %d total %d bytes\n",
 		tstamp->byte_offset, tstamp->copied_total);
 	if (stream->direction == SND_COMPRESS_PLAYBACK)
@@ -226,8 +218,8 @@ static int snd_compr_write_data(struct snd_compr_stream *stream,
 		      (app_pointer * runtime->buffer_size);
 
 	dstn = runtime->buffer + app_pointer;
-	pr_debug("copying %zu at %lld\n",
-			count, app_pointer);
+	pr_debug("copying %ld at %lld\n",
+			(unsigned long)count, app_pointer);
 	if (count < runtime->buffer_size - app_pointer) {
 		if (copy_from_user(dstn, buf, count))
 			return -EFAULT;
@@ -265,8 +257,8 @@ static ssize_t snd_compr_write(struct file *f, const char __user *buf,
 	}
 
 	avail = snd_compr_get_avail(stream);
-	pr_debug("avail returned %zu\n", avail);
-	/* calculate how much we can write to buffer */
+	pr_debug("avail returned %ld\n", (unsigned long)avail);
+	
 	if (avail > count)
 		avail = count;
 
@@ -303,23 +295,15 @@ static ssize_t snd_compr_read(struct file *f, char __user *buf,
 	stream = &data->stream;
 	mutex_lock(&stream->device->lock);
 
-	/* read is allowed when stream is running, paused, draining and setup
-	 * (yes setup is state which we transition to after stop, so if user
-	 * wants to read data after stop we allow that)
-	 */
-	switch (stream->runtime->state) {
-	case SNDRV_PCM_STATE_OPEN:
-	case SNDRV_PCM_STATE_PREPARED:
-	case SNDRV_PCM_STATE_XRUN:
-	case SNDRV_PCM_STATE_SUSPENDED:
-	case SNDRV_PCM_STATE_DISCONNECTED:
+	
+	if (stream->runtime->state != SNDRV_PCM_STATE_RUNNING) {
 		retval = -EBADFD;
 		goto out;
 	}
 
 	avail = snd_compr_get_avail(stream);
-	pr_debug("avail returned %zu\n", avail);
-	/* calculate how much we can read from buffer */
+	pr_debug("avail returned %ld\n", (unsigned long)avail);
+	
 	if (avail > count)
 		avail = count;
 
@@ -372,8 +356,8 @@ static unsigned int snd_compr_poll(struct file *f, poll_table *wait)
 	poll_wait(f, &stream->runtime->sleep, wait);
 
 	avail = snd_compr_get_avail(stream);
-	pr_debug("avail is %zu\n", avail);
-	/* check if we have at least one fragment to fill */
+	pr_debug("avail is %ld\n", (unsigned long)avail);
+	
 	switch (stream->runtime->state) {
 	case SNDRV_PCM_STATE_DRAINING:
 		retval = snd_compr_get_poll(stream);
@@ -382,7 +366,7 @@ static unsigned int snd_compr_poll(struct file *f, poll_table *wait)
 	case SNDRV_PCM_STATE_RUNNING:
 	case SNDRV_PCM_STATE_PREPARED:
 	case SNDRV_PCM_STATE_PAUSED:
-		if (avail >= stream->runtime->fragment_size)
+		if (avail >= stream->runtime->fragment_size && (avail % stream->runtime->fragment_size == 0))
 			retval = snd_compr_get_poll(stream);
 		break;
 	default:
@@ -872,15 +856,14 @@ static long snd_compr_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 }
 
 static const struct file_operations snd_compr_file_ops = {
-		.owner =          THIS_MODULE,
-		.open =           snd_compr_open,
-		.release =        snd_compr_free,
-		.write =          snd_compr_write,
-		.read =           snd_compr_read,
+		.owner =	THIS_MODULE,
+		.open =		snd_compr_open,
+		.release =	snd_compr_free,
+		.write =	snd_compr_write,
+		.read =		snd_compr_read,
 		.unlocked_ioctl = snd_compr_ioctl,
-		.compat_ioctl   = snd_compr_ioctl,
-		.mmap =           snd_compr_mmap,
-		.poll =           snd_compr_poll,
+		.mmap =		snd_compr_mmap,
+		.poll =		snd_compr_poll,
 };
 
 static int snd_compress_dev_register(struct snd_device *device)
@@ -893,7 +876,7 @@ static int snd_compress_dev_register(struct snd_device *device)
 		return -EBADFD;
 	compr = device->device_data;
 
-	snprintf(str, sizeof(str),"comprC%iD%i", compr->card->number, compr->device);
+	sprintf(str, "comprC%iD%i", compr->card->number, compr->device);
 	pr_debug("reg %s for device %s, direction %d\n", str, compr->name,
 			compr->direction);
 	

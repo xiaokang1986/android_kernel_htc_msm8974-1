@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -12,9 +12,7 @@
 #ifndef _MSM_PCM_ROUTING_H
 #define _MSM_PCM_ROUTING_H
 #include <sound/apr_audio-v2.h>
-//HTC_AUD ++
 #include <sound/pcm.h>
-//HTC_AUD --
 #define LPASS_BE_PRI_I2S_RX "PRIMARY_I2S_RX"
 #define LPASS_BE_PRI_I2S_TX "PRIMARY_I2S_TX"
 #define LPASS_BE_SLIMBUS_0_RX "SLIMBUS_0_RX"
@@ -41,7 +39,6 @@
 #define LPASS_BE_QUAT_MI2S_RX "QUAT_MI2S_RX"
 #define LPASS_BE_QUAT_MI2S_TX "QUAT_MI2S_TX"
 #define LPASS_BE_SEC_MI2S_RX "SEC_MI2S_RX"
-#define LPASS_BE_SEC_MI2S_RX_VIBRA "SEC_MI2S_RX_VIBRA"
 #define LPASS_BE_SEC_MI2S_TX "SEC_MI2S_TX"
 #define LPASS_BE_PRI_MI2S_RX "PRI_MI2S_RX"
 #define LPASS_BE_PRI_MI2S_TX "PRI_MI2S_TX"
@@ -59,11 +56,6 @@
 #define LPASS_BE_SLIMBUS_4_TX "SLIMBUS_4_TX"
 #define LPASS_BE_SLIMBUS_5_TX "SLIMBUS_5_TX"
 
-/* For multimedia front-ends, asm session is allocated dynamically.
- * Hence, asm session/multimedia front-end mapping has to be maintained.
- * Due to this reason, additional multimedia front-end must be placed before
- * non-multimedia front-ends.
- */
 
 enum {
 	MSM_FRONTEND_DAI_MULTIMEDIA1 = 0,
@@ -82,17 +74,9 @@ enum {
 	MSM_FRONTEND_DAI_VOICE_STUB,
 	MSM_FRONTEND_DAI_VOLTE,
 	MSM_FRONTEND_DAI_DTMF_RX,
+	MSM_FRONTEND_DAI_LSM1,
 	MSM_FRONTEND_DAI_VOICE2,
 	MSM_FRONTEND_DAI_QCHAT,
-	MSM_FRONTEND_DAI_LSM1,
-	MSM_FRONTEND_DAI_LSM2,
-	MSM_FRONTEND_DAI_LSM3,
-	MSM_FRONTEND_DAI_LSM4,
-	MSM_FRONTEND_DAI_LSM5,
-	MSM_FRONTEND_DAI_LSM6,
-	MSM_FRONTEND_DAI_LSM7,
-	MSM_FRONTEND_DAI_LSM8,
-	MSM_FRONTEND_DAI_VOWLAN,
 	MSM_FRONTEND_DAI_MAX,
 };
 
@@ -141,7 +125,6 @@ enum {
 	MSM_BACKEND_DAI_AUDIO_I2S_RX,
 	MSM_BACKEND_DAI_SEC_AUXPCM_RX,
 	MSM_BACKEND_DAI_SEC_AUXPCM_TX,
-	MSM_BACKEND_DAI_SECONDARY_MI2S_RX_VIBRA,
 	MSM_BACKEND_DAI_MAX,
 };
 
@@ -151,10 +134,6 @@ enum msm_pcm_routing_event {
 	MSM_PCM_RT_EVT_MAX,
 };
 
-/* dai_id: front-end ID,
- * dspst_id:  DSP audio stream ID
- * stream_type: playback or capture
- */
 void msm_pcm_routing_reg_phy_stream(int fedai_id, int perf_mode, int dspst_id,
 	int stream_type);
 void msm_pcm_routing_reg_psthr_stream(int fedai_id, int dspst_id,
@@ -179,7 +158,5 @@ uint32_t get_adm_rx_topology(void);
 
 uint32_t get_adm_tx_topology(void);
 
-//htc audio++
 int msm_pcm_routing_get_port(struct snd_pcm_substream *substream, u16 *port_id);
-//htc audio --
-#endif /*_MSM_PCM_H*/
+#endif 
