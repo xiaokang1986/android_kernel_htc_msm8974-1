@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -24,6 +24,7 @@
 #include <mach/qdsp6v2/rtac.h>
 #include <sound/q6asm-v2.h>
 #include <sound/q6afe-v2.h>
+#include <sound/q6audio-v2.h>
 #include <sound/apr_audio-v2.h>
 #include "q6voice.h"
 #include "audio_acdb.h"
@@ -818,6 +819,7 @@ u32 send_adm_apr(void *buf, u32 opcode)
 	u32	bytes_returned = 0;
 	u32	port_index = 0;
 	u32	copp_id;
+	int	port_id;
 	u32	payload_size;
 	u32	data_size = 0;
 	struct apr_hdr	adm_params;
@@ -876,6 +878,13 @@ u32 send_adm_apr(void *buf, u32 opcode)
 		       __func__, copp_id);
 		goto done;
 	}
+	port_id = q6audio_get_port_id_from_index(port_index);
+
+	if (port_id < 0) {
+		pr_err("%s: Could not find port id mapped for port_idx %d\n",
+		       __func__, port_index);
+		goto done;
+	}
 
 	mutex_lock(&rtac_adm_apr_mutex);
 	if (rtac_adm_apr_data.apr_handle == NULL) {
@@ -932,7 +941,7 @@ u32 send_adm_apr(void *buf, u32 opcode)
 	adm_params.dest_svc = APR_SVC_ADM;
 	adm_params.dest_domain = APR_DOMAIN_ADSP;
 	adm_params.dest_port = copp_id;
-	adm_params.token = copp_id;
+	adm_params.token = port_id;
 	adm_params.opcode = opcode;
 
 	
@@ -1096,7 +1105,7 @@ u32 send_rtac_asm_apr(void *buf, u32 opcode)
 		if (data_size > rtac_cal[ASM_RTAC_CAL].map_data.map_size) {
 			pr_err("%s: Invalid data size = %d\n",
 				__func__, data_size);
-			goto done;
+			goto err; 
 		}
 		payload_size = 4 * sizeof(u32);
 
@@ -1115,7 +1124,7 @@ u32 send_rtac_asm_apr(void *buf, u32 opcode)
 		if (payload_size > MAX_PAYLOAD_SIZE) {
 			pr_err("%s: Invalid payload size = %d\n",
 				__func__, payload_size);
-			goto done;
+			goto err; 
 		}
 
 		
@@ -1134,6 +1143,11 @@ u32 send_rtac_asm_apr(void *buf, u32 opcode)
 	asm_params.pkt_size = APR_PKT_SIZE(APR_HDR_SIZE,
 		payload_size);
 	asm_params.src_svc = q6asm_get_apr_service_id(session_id);
+	if (asm_params.src_svc == -EINVAL) {
+		pr_err("%s: Could not get service id form session %d", __func__, session_id);
+		goto err;
+	}
+
 	asm_params.src_domain = APR_DOMAIN_APPS;
 	asm_params.src_port = (session_id << 8) | 0x0001;
 	asm_params.dest_svc = APR_SVC_ASM;

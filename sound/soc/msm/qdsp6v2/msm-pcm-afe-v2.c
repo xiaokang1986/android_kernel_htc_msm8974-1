@@ -35,12 +35,12 @@
 
 #define MIN_PLAYBACK_PERIOD_SIZE (128 * 2)
 #define MAX_PLAYBACK_PERIOD_SIZE (128 * 2 * 2 * 6)
-#define MIN_PLAYBACK_NUM_PERIODS (64)
+#define MIN_PLAYBACK_NUM_PERIODS (4)
 #define MAX_PLAYBACK_NUM_PERIODS (768)
 
 #define MIN_CAPTURE_PERIOD_SIZE (128 * 2 * 4)
 #define MAX_CAPTURE_PERIOD_SIZE (128 * 2 * 2 * 6 * 4)
-#define MIN_CAPTURE_NUM_PERIODS (32)
+#define MIN_CAPTURE_NUM_PERIODS (4)
 #define MAX_CAPTURE_NUM_PERIODS (384)
 
 static struct snd_pcm_hardware msm_afe_hardware_playback = {
@@ -58,7 +58,7 @@ static struct snd_pcm_hardware msm_afe_hardware_playback = {
 	.channels_min =         1,
 	.channels_max =         6,
 	.buffer_bytes_max =     MAX_PLAYBACK_PERIOD_SIZE *
-				MIN_PLAYBACK_NUM_PERIODS,
+				MAX_PLAYBACK_NUM_PERIODS,
 	.period_bytes_min =     MIN_PLAYBACK_PERIOD_SIZE,
 	.period_bytes_max =     MAX_PLAYBACK_PERIOD_SIZE,
 	.periods_min =          MIN_PLAYBACK_NUM_PERIODS,
@@ -81,7 +81,7 @@ static struct snd_pcm_hardware msm_afe_hardware_capture = {
 	.channels_min =         1,
 	.channels_max =         6,
 	.buffer_bytes_max =     MAX_CAPTURE_PERIOD_SIZE *
-				MIN_CAPTURE_NUM_PERIODS,
+				MAX_CAPTURE_NUM_PERIODS,
 	.period_bytes_min =     MIN_CAPTURE_PERIOD_SIZE,
 	.period_bytes_max =     MAX_CAPTURE_PERIOD_SIZE,
 	.periods_min =          MIN_CAPTURE_NUM_PERIODS,
@@ -178,6 +178,18 @@ static void pcm_afe_process_tx_pkt(uint32_t opcode,
 			switch (event) {
 			case AFE_EVENT_RTPORT_START: {
 				prtd->dsp_cnt = 0;
+				/* Calculate poll time.
+				 * Split steps to avoid overflow.
+				 * Poll time-time corresponding to one period
+				 * in bytes.
+				 * (Samplerate * channelcount * format) =
+				 * bytes in 1 sec.
+				 * Poll time =
+				 *	(period bytes / bytes in one sec) *
+				 *	 1000000 micro seconds.
+				 * Multiplication by 1000000 is done in two
+				 * steps to keep the accuracy of poll time.
+				 */
 				period_bytes = ((uint64_t)(
 					(snd_pcm_lib_period_bytes(
 						prtd->substream)) *
@@ -251,6 +263,14 @@ static void pcm_afe_process_rx_pkt(uint32_t opcode,
 		switch (event) {
 		case AFE_EVENT_RTPORT_START: {
 			prtd->dsp_cnt = 0;
+			/* Calculate poll time. Split steps to avoid overflow.
+			 * Poll time-time corresponding to one period in bytes.
+			 * (Samplerate * channelcount * format)=bytes in 1 sec.
+			 * Poll time =  (period bytes / bytes in one sec) *
+			 * 1000000 micro seconds.
+			 * Multiplication by 1000000 is done in two steps to
+			 * keep the accuracy of poll time.
+			 */
 			period_bytes = ((uint64_t)(
 				(snd_pcm_lib_period_bytes(prtd->substream)) *
 				 1000));
@@ -340,6 +360,7 @@ static int msm_afe_capture_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+/* Conventional and unconventional sample rate supported */
 static unsigned int supported_sample_rates[] = {
 	8000, 16000, 48000
 };
@@ -396,7 +417,7 @@ static int msm_afe_open(struct snd_pcm_substream *substream)
 				&constraints_sample_rates);
 	if (ret < 0)
 		pr_err("snd_pcm_hw_constraint_list failed\n");
-	
+	/* Ensure that buffer size is a multiple of period size */
 	ret = snd_pcm_hw_constraint_integer(runtime,
 					    SNDRV_PCM_HW_PARAM_PERIODS);
 	if (ret < 0)
