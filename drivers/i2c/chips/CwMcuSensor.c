@@ -1385,6 +1385,10 @@ static int active_set(struct device *dev,struct device_attribute *attr,const cha
 		return count;
 	}
 
+	if ((sensors_id == Proximity) && (enabled == 0) && proximity_flag) {
+		enabled = 1;
+	}
+
 	if ((sensors_id == Proximity) && (enabled == 0)) {
 		if (mcu_data->proximity_debu_info == 1) {
 			uint8_t mcu_data_p[4];
@@ -3057,7 +3061,8 @@ static void cwmcu_irq_work_func(struct work_struct *work)
 		}
 		D("[CWMCU]CW_MCU_INT_BIT_HTC_GESTURE_MOTION_HIDI: i2c bus read %d bytes\n", ret);
 		data_event = (s32)((data[0] & 0x1F) | (((data[1] | (data[2] << 8)) & 0x3FF) << 5) | (data[3] << 15) | (data[4] << 23));
-
+		if (vib_trigger) {
+			if (data[0] == 14) {
 				vib_trigger_event(vib_trigger, VIB_TIME);
 				D("Gesture motion HIDI detected, vibrate for %d ms!\n", VIB_TIME);
 			} else if(data[0] == 6 || data[0] == 15 || data[0] == 18 || data[0] == 19 || data[0] == 24 || data[0] == 25 || data[0] == 26 || data[0] == 27) {
@@ -3070,7 +3075,7 @@ static void cwmcu_irq_work_func(struct work_struct *work)
 				D("[CWMCU][vib_trigger] Gesture_Motion_HIDI: data_buff: %d, data_event: %d\n", data_buff[1], data_event);
 				D("[CWMCU][vib_trigger] Gesture_Motion_HIDI input sync\n");
 			} else {
-				sensor->sensors_time[Gesture_Motion_HIDI] = 0;
+                                sensor->sensors_time[Gesture_Motion_HIDI] = 0;
                                 input_report_rel(sensor->input, HTC_Gesture_Motion_HIDI, data_event);
                                 input_sync(sensor->input);
                                 power_key_pressed = 0;
@@ -3078,9 +3083,7 @@ static void cwmcu_irq_work_func(struct work_struct *work)
                                 D("[CWMCU][disable vib_trigger] Gesture_Motion_HIDI: data_buff: %d, data_event: %d\n", data_buff[1], data_event);
                                 D("[CWMCU][disable vib_trigger] Gesture_Motion_HIDI input sync\n");
 			}
-			
-			} else {
-				
+		} else {
 			sensor->sensors_time[Gesture_Motion_HIDI] = 0;
 			input_report_rel(sensor->input, HTC_Gesture_Motion_HIDI, data_event);
 			input_sync(sensor->input);
@@ -3091,7 +3094,7 @@ static void cwmcu_irq_work_func(struct work_struct *work)
 		}
 		clear_intr = CW_MCU_INT_BIT_HTC_GESTURE_MOTION_HIDI;
 		ret = CWMCU_i2c_write(sensor, CWSTM32_INT_ST4, &clear_intr, 1);
-	
+	}
 
 	
 	if (INT_st4 & CW_MCU_INT_BIT_HTC_MATRIX_GESTURE_HIDI) {
