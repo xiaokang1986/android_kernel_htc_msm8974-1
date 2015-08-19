@@ -77,7 +77,7 @@ int adreno_idler(struct devfreq_dev_status stats, struct devfreq *devfreq,
 		}
 		if (idlecount >= idlewait &&
 		    stats.busy_time * 100 < stats.total_time * downdifferenctial) {
-			/* We are idle for (idlewait + 1)'th time! Ramp down the frequency now. */
+			/* We are idle for idlewaitms! Ramp down the frequency now. */
 			*freq = devfreq->profile->freq_table[devfreq->profile->max_state - 1];
 			idlecount--;
 			return 1;
