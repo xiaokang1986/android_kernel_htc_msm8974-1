@@ -14,8 +14,6 @@
 #include <linux/backing-dev.h>
 #include "internal.h"
 
-#include <trace/events/mmcio.h>
-
 #include <linux/moduleparam.h>
 
 bool fsync_enabled = true;
