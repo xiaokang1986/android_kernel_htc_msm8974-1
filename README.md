@@ -1,9 +1,11 @@
-android_kernel_htc_msm8974
 
-Kernel for the HTC One M8
 
-This project started with a base Unicornblood kernel from DirtyUnicorns. 
+HTC One M8 AOSP Kernel by kylin668
 
-We aim to include as many tweaks as possible to an AOSP kernel while maintaing stability.
+支持几乎所有htc m8所有机型，包括 M8tl M8w M8D M8whl M8wl 。
+
+Kylin668
+htcui.com
+
 
 
